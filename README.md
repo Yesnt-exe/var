@@ -7,8 +7,8 @@
   
   int main(){
   var Example = 25;
-  Example += "str";
-  std::cout << Example; ("25.000000str"); // that 25.xxxstr will be fixed in next update
+  Example = Example + "str";
+  std::cout << Example; // Output: "25str" 
   }
   
   ```
@@ -17,3 +17,6 @@
     - std::vector
     - std::map
     and more...
+## Warning!
+  If you use += instead of a = a + b then ".xxx" will appear in a number converted to string. 
+  It will be fixed in next update
