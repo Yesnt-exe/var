@@ -8,7 +8,7 @@
   int main(){
   var Example = 25;
   Example += "str";
-  cout << Example; ("25str");
+  std::cout << Example; ("25.000000str"); // that 25.xxxstr will be fixed in next update
   }
   
   ```
