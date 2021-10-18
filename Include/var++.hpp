@@ -4,6 +4,8 @@
 #include <vector>
 #include <iostream>
 
+//Experimental version
+//Made by Yesnt
 
 using std::string;
 //this is for internal use
@@ -13,16 +15,41 @@ bool afterpoint(long double n) {
     return !(g == n);
 }
 
+//accuracy to 4 digits after .
+std::string UFormat(long double ld){
+    std::stringstream stream;
+    stream << ld;
+    return stream.str();
+}
 
+class VarException{
+private:
+    std::string awhat;
+public:
+    VarException(std::string a){
+        this->awhat = a;
+    }
+    std::string what(){
+        return this->awhat;
+    }
+};
 
 class var {
 private:
-    bool isnumeric = true;
+    bool nonetype = false;
+    bool isnumeric = false;
     bool isstring = false;
     long double numericdata = 0;
     std::string sdata = "";
     //3 for now
 public:
+    var(){
+        this->numericdata = 0;
+        this->isnumeric = false;
+        this->isstring = false;
+        this->nonetype = true;
+        this->sdata = "";
+    }
     var(string val) {
         this->numericdata = 0;
         
@@ -98,7 +125,7 @@ public:
             return this->numericdata;
         }
         else {
-            throw(false);
+            return 0;
         }
     }
     template<class Type>
@@ -107,98 +134,86 @@ public:
             return (Type)this->numericdata;
         }
         else {
-            throw(std::exception());
+            return (Type)0;
         }
     }
-    std::string str() {
-        if (this->isnumeric) {
-               return std::to_string(this->numericdata);
+    //automatic formatting, maxium accuracy up to 4 digits after .
+    std::string str(){
+        if(this->isnumeric){
+            return UFormat(this->numericdata);
         }
-        else if (this->isstring) {
-            return sdata;
+        else if(this->isstring){
+            return this->sdata;
         }
+        return "";
     }
-    std::string stri() {
-        if (this->isnumeric) {
-            return std::to_string((int64_t)this->numericdata);
+    //returns to_string without removing any digits after .
+    std::string fstr(){
+        if(this->isnumeric){
+            return std::to_string(this->numericdata);
         }
-        else if (this->isstring) {
-            return sdata;
+        else if(this->isstring){
+            return this->sdata;
         }
+        return "";
     }
     var operator+(var sec) {
-        if (sec.isnumeric) {
-            if (this->isnumeric) {
-                return this->numericdata + sec.numericdata;
+        if(this->isnumeric){
+            if(sec.isnumeric){
+                 return var(this->numericdata + sec.numericdata);
             }
-            else if(this->isstring) {
-                if (afterpoint(sec.numericdata)) {
-                    return this->str() + sec.str();
-                }
-                else {
-                    return this->str() + sec.stri();
-                }
+            else if(sec.isstring){
+                 return var(this->str() + sec.str());
             }
         }
-        else if (sec.isstring) {
-            if (this->isnumeric) {
-                if (afterpoint(this->numericdata)) {
-                    return this->str() + sec.str();
-                }
-                else {
-                    return this->stri() + sec.str();
-                }
-            }
-            else {
-                return this->str() + sec.str();
-            }
+        else if(this->isstring || this->nonetype){
+            return var(this->str() + sec.str());
         }
+        return var(0);
     }
     var operator-(var sec) {
-        if (this->isstring || sec.isstring) {
-            throw(false);
+         if(this->IsNone() || this->IsString() || sec.IsNone() || sec.IsString()){
+            throw(VarException("Substracting is not supported with other types than numeric!"));
         }
-        else if(this->isnumeric && sec.isnumeric) {
+        else if(this->isnumeric && sec.isnumeric){
             return this->numericdata - sec.numericdata;
         }
+        return var(0);
     }
     void operator+=(var sec) {
-        if (sec.isnumeric) {
-            if (this->isnumeric) {
-                this->numericdata = this->numericdata + sec.numericdata;
-                this->isnumeric = true;
-                this->sdata = "";
-                this->isstring = false;
-            }
-            else if (this->isstring) {
-                if (afterpoint(sec.numericdata)) {
-                    this->sdata = this->str() + sec.str();
-                    this->numericdata = 0;
-                    this->isstring = true;
-                    this->isnumeric = false;
-                }
-                else {
-                    //string
-                    this->sdata = this->str() + sec.stri();
-                    this->numericdata = 0;
-                    this->isstring = true;
-                    this->isnumeric = false;
-                }
-            }
-        }
-        else if (sec.isstring) {
-            this->sdata = this->str() + sec.str();
-            this->numericdata = 0;
-            this->isstring = true;
-            this->isnumeric = false;
-        }
+       if(this->isnumeric){
+           if(sec.isnumeric){
+               this->numericdata += sec.numericdata;
+               this->isstring = false;
+               return;
+           }
+           else if(sec.isstring){
+               this->sdata = this->str() + sec.str();
+               this->isstring = true;
+               this->isnumeric = false;
+               this->numericdata = 0;
+               return;
+           }
+       }
+       else if(this->isstring || this->nonetype){
+           this->sdata += sec.str();
+           this->isstring = true;
+           this->isnumeric = false;
+           this->nonetype = false;
+           this->numericdata = 0;
+           return;
+       }
     }
     void operator-=(var sec) {
-        if (this->isstring || sec.isstring) {
-            throw(false);
+        if(this->nonetype || this->isstring || sec.IsNone() || sec.IsString()){
+            throw(VarException("Substracting is not supported with other types than numeric!"));
+            return;
         }
-        this->numericdata = this->numericdata - sec.numericdata;
-        return;
+        else if(this->isnumeric && sec.isnumeric){
+            this->numericdata -= sec.numericdata;
+            return;
+        }
+        throw(VarException("An error occured while substracting!"));
     }
     void operator=(var sec) {
         this->isnumeric = sec.isnumeric;
@@ -212,9 +227,12 @@ public:
     bool IsString() {
         return this->isstring;
     }
+    bool IsNone(){
+        return this->nonetype;
+    }
     ~var() {
         this->isnumeric = false;
-        
+        this->nonetype = false;
         this->isstring = false;
         this->numericdata = false;
         this->sdata = "";
@@ -225,11 +243,17 @@ public:
 
 string Type(var val) {
     if (val.IsNumeric()) {
-        return "number";
+        if(afterpoint(val.longfloat())){
+            return "Float";
+        }
+        else{
+            return "Int";
+        }
     }
     else if (val.IsString()) {
-        return "string";
+        return "String";
     }
+    return "None";
 }
 std::ostream& operator<<(std::ostream& os, var& val) {
     if (val.IsString()) {
@@ -242,6 +266,9 @@ std::ostream& operator<<(std::ostream& os, var& val) {
         else {
             os << (int64_t)val.longfloat();
         }
+    }
+    else if(val.IsNone()){
+        os << "None";
     }
     return os;
 }
