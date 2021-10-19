@@ -2,7 +2,9 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <cmath>
 #include <iostream>
+#include <array>
 
 //Experimental version
 //Made by Yesnt
@@ -14,6 +16,18 @@ bool afterpoint(long double n) {
     long double g = (long double)i;
     return !(g == n);
 }
+template<class VecType, class Type>
+void UnpackArguments(std::vector<VecType>&vec, Type argument){
+    vec.push_back(argument);
+}
+
+//this is for internal use
+template<class VecType, class Type, class ... Args>
+void UnpackArguments(std::vector<VecType>&vec,Type argument, Args ... args){
+    //unpack
+    vec.push_back(argument);
+    UnpackArguments(vec, args...);
+}
 
 //accuracy to 4 digits after .
 std::string UFormat(long double ld){
@@ -21,6 +35,11 @@ std::string UFormat(long double ld){
     stream << ld;
     return stream.str();
 }
+
+
+class var;
+template<class T>
+var VarFromNumeric(T Type);
 
 class VarException{
 private:
@@ -39,6 +58,8 @@ private:
     bool nonetype = false;
     bool isnumeric = false;
     bool isstring = false;
+    bool isvector = false;
+    std::vector<var>vecdata;
     long double numericdata = 0;
     std::string sdata = "";
     //3 for now
@@ -62,6 +83,12 @@ public:
         this->isnumeric = false;
         this->isstring = true;
         this->sdata = std::string(val);
+    }
+    var(char val) {
+        this->numericdata = 0;
+        this->isnumeric = false;
+        this->isstring = true;
+        this->sdata += val;
     }
     template<typename Type>
     var(short val) {
@@ -120,6 +147,31 @@ public:
         this->sdata = "";
         this->isnumeric = true;
     }
+    //VERY EXPERIMENTAL MIGHT NOT WORK
+    template<class Type, size_t ArraySize>
+    var(std::array<Type, ArraySize>val){
+        this->isvector = true;  
+        this->isnumeric = false;
+        this->isstring = false;
+        for(size_t i = 0; i<ArraySize; i++){this->vecdata.push_back(val[i]);}
+        return;
+    }
+    template<class Type>
+    var(std::vector<Type>val){
+        this->isvector = true;
+        this->isnumeric = false;
+        this->isstring = false;
+        for(const auto& ref : val){
+            this->vecdata.push_back(var(ref));
+        }
+        return;
+    }
+    template<class ... Args>
+    var(Args ... arguments){
+        this->isvector = true;
+        UnpackArguments(this->vecdata, arguments...);
+        return;
+    }
     long double longfloat() {
         if (isnumeric) {
             return this->numericdata;
@@ -145,7 +197,20 @@ public:
         else if(this->isstring){
             return this->sdata;
         }
-        return "";
+        else if(this->isvector){
+            std::string ret;
+            ret += "{";
+            bool first;
+            for(int i = 0; i<this->vecdata.size(); i++){
+                if(i != 0 && this->vecdata[i].str() != ""){
+                    ret += ',';
+                }
+                ret += this->vecdata[i].str();
+            }
+            ret += "}";
+            return ret;
+            }
+            return "";
     }
     //returns to_string without removing any digits after .
     std::string fstr(){
@@ -168,6 +233,19 @@ public:
         }
         else if(this->isstring || this->nonetype){
             return var(this->str() + sec.str());
+        }
+        else if(this->isvector){
+            throw(VarException("Operator + is not supported with Array, you can use Append() or += operator!"));
+            return 0;
+        }
+        return var(0);
+    }
+    var operator+(char sec) {
+        if(this->isstring){
+            return this->sdata + sec;
+        }
+        else if(this->isnumeric){
+            return this->numericdata + sec;
         }
         return var(0);
     }
@@ -203,6 +281,24 @@ public:
            this->numericdata = 0;
            return;
        }
+       else if(this->isvector){
+           this->vecdata.push_back(sec);
+       }
+    }
+    void operator+=(char sec){
+        if(this->isstring){
+            this->sdata += sec;
+            return;
+        }
+        else if(this->isnumeric){
+            this->numericdata += sec;
+            return;
+        }
+        else{
+            throw(VarException("Invalid usage of addition char operator"));
+            return;
+        }
+        return;
     }
     void operator-=(var sec) {
         if(this->nonetype || this->isstring || sec.IsNone() || sec.IsString()){
@@ -216,10 +312,128 @@ public:
         throw(VarException("An error occured while substracting!"));
     }
     void operator=(var sec) {
+        this->vecdata.clear(); // memory leak protection
+        this->sdata = ""; //memory leak protection
         this->isnumeric = sec.isnumeric;
         this->isstring = sec.isstring;
         this->numericdata = sec.numericdata;
         this->sdata = sec.sdata;
+        this->isvector = sec.isvector;
+        this->vecdata = sec.vecdata;
+    }
+    var operator*(var sec){
+        if(!this->isnumeric || sec.isnumeric == false){
+            throw(VarException("Multiplication of non numeric types is not yet supoorted!"));
+            return 0;
+        }
+        else{
+            return (this->numericdata * sec.numericdata);
+        }
+        return 0;
+    }
+    void operator*=(var sec){
+        if(!this->isnumeric || sec.isnumeric == false){
+            throw(VarException("Multiplication of non numeric types is not yet supoorted!"));
+            return;
+        }
+        else{
+            this->numericdata *= sec.numericdata;
+            return;
+        }
+        this->numericdata = 0;
+        this->isnumeric = true;
+        this->nonetype = false;
+        this->isstring = false;
+        return;
+    }
+    var operator/(var sec){
+        if(!this->isnumeric || sec.isnumeric == false){
+            throw(VarException("Multiplication of non numeric types is not yet supoorted!"));
+            return 0;
+        }
+        else{
+            return (this->numericdata / sec.numericdata);
+        }
+        return 0;
+    }
+    void operator/=(var sec){
+        if(!this->isnumeric || sec.isnumeric == false){
+            throw(VarException("Multiplication of non numeric types is not yet supoorted!"));
+            return;
+        }
+        else{
+            this->numericdata /= sec.numericdata;
+            return;
+        }
+        this->numericdata = 0;
+        this->isnumeric = true;
+        this->nonetype = false;
+        this->isstring = false;
+        return;
+    }
+    var operator%(var sec){
+        if(!this->isnumeric || sec.isnumeric == false){
+            throw(VarException("Modulo operator with non numeric types is not supoorted!"));
+            return 0;
+        }
+        else{
+            return var(fmodl(this->numericdata, sec.numericdata));
+        }
+        return 0;
+
+    }
+    void operator%=(var sec){
+        if(!this->isnumeric || sec.isnumeric == false){
+            throw(VarException("Modulo operator with non numeric types is not supoorted!"));
+            return;
+        }
+        else{
+            this->numericdata = fmodl(this->numericdata, sec.numericdata);
+            return;
+        }
+        this->numericdata = 0;
+        this->isnumeric = true;
+        this->nonetype = false;
+        this->isstring = false;
+        return;
+    }
+    void Append(var val){
+        if(!this->isvector && this->isstring == false){
+            throw(VarException("Appending is only supported by an Array or String!"));
+            return;
+        }
+        if(this->isvector){
+            this->vecdata.push_back(val);
+        }
+        else if(this->isstring){
+            this->sdata += val.str();
+        }    
+    }
+    //Used for Arrays, using it for string will return its size not length;
+    size_t size(){
+        if(this->isvector){
+            return this->vecdata.size();
+        }
+        else if(this->isstring){
+            return this->sdata.size();
+        }
+        else{
+            throw(VarException("Size is only supported by an Array or String!"));
+            return 0;
+        }
+    }
+    //Used for strings, will return its length;
+    size_t length(){
+        if(!this->isstring){
+            throw(VarException("Size is only supported by a String!"));
+            return 0;
+        }
+        else{
+            return this->sdata.length();
+        }
+    }
+    std::vector<var>&PureVector(){
+        return this->vecdata;
     }
     bool IsNumeric() {
         return this->isnumeric;
@@ -230,6 +444,9 @@ public:
     bool IsNone(){
         return this->nonetype;
     }
+    bool IsArray(){
+        return this->isvector;
+    }
     ~var() {
         this->isnumeric = false;
         this->nonetype = false;
@@ -237,7 +454,28 @@ public:
         this->numericdata = false;
         this->sdata = "";
     }
-
+    template<class Type>
+    var operator[](Type index){
+        if(this->isstring){
+            if(index > this->sdata.size()-1){
+                throw(VarException("Index is too large!"));
+                return 0;
+            }
+            return this->sdata[index];
+        }
+        else if(this->isvector){
+            if(this->vecdata.size()-1 < index){
+                throw(VarException("Index is too large!"));
+                return 0;
+            }
+            return this->vecdata[index];
+        }
+        else{
+            throw(VarException("Operator [] is not compatibile with types other than array or string!"));
+            return 0;
+        }
+        return 0;
+    }
 };
 
 
@@ -253,9 +491,12 @@ string Type(var val) {
     else if (val.IsString()) {
         return "String";
     }
+    else if(val.IsArray()){
+        return "Array";
+    }
     return "None";
 }
-std::ostream& operator<<(std::ostream& os, var& val) {
+std::ostream& operator<<(std::ostream& os, var val) {
     if (val.IsString()) {
         os << val.str();
     }
@@ -267,12 +508,16 @@ std::ostream& operator<<(std::ostream& os, var& val) {
             os << (int64_t)val.longfloat();
         }
     }
+    else if(val.IsArray()){
+        os << val.str();
+    }
     else if(val.IsNone()){
         os << "None";
     }
     return os;
 }
-std::istream& operator>>(std::istream& is, var& val) {
+
+std::istream& operator>>(std::istream& is, var val) {
     std::string s;
     is >> s;
     if (s == "") {
@@ -281,4 +526,9 @@ std::istream& operator>>(std::istream& is, var& val) {
     }
     val = s;
     return is;
+}
+
+template<class T>
+var VarFromNumeric(T Type){
+    return var((long double)Type);
 }
