@@ -200,8 +200,7 @@ public:
         else if(this->isvector){
             std::string ret;
             ret += "{";
-            bool first;
-            for(int i = 0; i<this->vecdata.size(); i++){
+            for(size_t i = 0; i<this->vecdata.size(); i++){
                 if(i != 0 && this->vecdata[i].str() != ""){
                     ret += ',';
                 }
@@ -397,6 +396,25 @@ public:
         this->isstring = false;
         return;
     }
+    bool operator==(var sec){
+        if(this->numericdata == sec.numericdata && sec.isnumeric == this->isnumeric && sec.isstring == this->isstring && sec.sdata == this->sdata && sec.isvector == this->isvector){
+            if(this->isvector && sec.isvector){
+                std::vector<var>&ref = this->vecdata;
+                std::vector<var>&ref2 = sec.vecdata;
+                if(ref.size() != ref2.size()){
+                    return false;
+                }
+                for(size_t i = 0; i<ref.size(); i++){
+                    if(!(ref[i] == ref2[i])){
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return true;
+        }
+        return false;
+    }
     void Append(var val){
         if(!this->isvector && this->isstring == false){
             throw(VarException("Appending is only supported by an Array or String!"));
@@ -425,7 +443,7 @@ public:
     //Used for strings, will return its length;
     size_t length(){
         if(!this->isstring){
-            throw(VarException("Size is only supported by a String!"));
+            throw(VarException("length is only supported by a String!"));
             return 0;
         }
         else{
@@ -434,6 +452,15 @@ public:
     }
     std::vector<var>&PureVector(){
         return this->vecdata;
+    }
+    //[] but for string type []support will be added in future)
+    char &StrIndexReference(size_t index){
+        if(!this->isstring){
+            throw(VarException("length is only supported by a String!"));
+        }
+        else{
+            return this->sdata[index];
+        }
     }
     bool IsNumeric() {
         return this->isnumeric;
@@ -454,27 +481,13 @@ public:
         this->numericdata = false;
         this->sdata = "";
     }
+    //only usable []
     template<class Type>
-    var operator[](Type index){
-        if(this->isstring){
-            if(index > this->sdata.size()-1){
-                throw(VarException("Index is too large!"));
-                return 0;
-            }
-            return this->sdata[index];
+    var& operator[](Type index){
+        if(!this->isvector){
+            throw(VarException("Operator [] is only supported by Array!"));
         }
-        else if(this->isvector){
-            if(this->vecdata.size()-1 < index){
-                throw(VarException("Index is too large!"));
-                return 0;
-            }
-            return this->vecdata[index];
-        }
-        else{
-            throw(VarException("Operator [] is not compatibile with types other than array or string!"));
-            return 0;
-        }
-        return 0;
+        return this->vecdata[index];
     }
 };
 
