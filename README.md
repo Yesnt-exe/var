@@ -30,10 +30,7 @@
 
   ```
 ## Planned updates:
-  For now var supports only std::string, and builtin data types but i will add support for:
-    - std::vector
-    - std::map
-    and more...
+  Support for more dynamic allocation (now var uses minimum 80bytes per one variable on g++ 64). Easier IO with console and special library for easy file IO using var.
 ## Warning:
   if str() function is used with floating number it will return a version of that number with max 4 digits after . if you want better precision use fstr() or directly get value by longfloat() or customtype()
   all operators are using str() formatting when a floating number is combined with a string
